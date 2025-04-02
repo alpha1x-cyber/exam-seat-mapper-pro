@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   HomeIcon,
   Users,
@@ -12,15 +12,22 @@ import {
   Menu,
   ChevronLeft,
   ChevronRight,
-  ShieldCheck
+  ShieldCheck,
+  GraduationCap,
+  UserCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { hasRole, getCurrentUser, logoutUser } from "@/lib/auth";
+import { useToast } from "@/components/ui/use-toast";
 
 const Sidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const isRTL = document.documentElement.dir === "rtl";
+  const { toast } = useToast();
+  const user = getCurrentUser();
   
   useEffect(() => {
     // Check if admin is logged in
@@ -28,14 +35,25 @@ const Sidebar = () => {
     setIsAdmin(adminStatus);
   }, [location.pathname]); // Re-check when route changes
   
+  const handleLogout = () => {
+    logoutUser();
+    toast({
+      title: "تم تسجيل الخروج",
+      description: "تم تسجيل خروجك بنجاح",
+    });
+    navigate("/login");
+  };
+  
   const menuItems = [
-    { name: "الرئيسية", icon: <HomeIcon size={20} />, path: "/" },
-    { name: "الطلاب", icon: <Users size={20} />, path: "/students" },
-    { name: "القاعات", icon: <MapPin size={20} />, path: "/halls" },
-    { name: "الامتحانات", icon: <CalendarDays size={20} />, path: "/exams" },
-    { name: "المراقبين", icon: <ClipboardList size={20} />, path: "/proctors" },
-    { name: "لوحة المدير", icon: <ShieldCheck size={20} />, path: "/admin", adminOnly: true },
-    { name: "الإعدادات", icon: <Settings size={20} />, path: "/settings" },
+    { name: "الرئيسية", icon: <HomeIcon size={20} />, path: "/", roles: ["admin", "teacher", "proctor", "student"] },
+    { name: "بيانات الطلاب", icon: <Users size={20} />, path: "/students", roles: ["admin", "teacher", "proctor", "student"] },
+    { name: "القاعات", icon: <MapPin size={20} />, path: "/halls", roles: ["admin", "teacher", "proctor"] },
+    { name: "الامتحانات", icon: <CalendarDays size={20} />, path: "/exams", roles: ["admin", "teacher", "proctor"] },
+    { name: "المراقبين", icon: <ClipboardList size={20} />, path: "/proctors", roles: ["admin"] },
+    { name: "إدارة الدرجات", icon: <GraduationCap size={20} />, path: "/grades", roles: ["admin", "teacher"] },
+    { name: "الحضور والغياب", icon: <UserCheck size={20} />, path: "/attendance", roles: ["admin", "teacher", "proctor"] },
+    { name: "لوحة المدير", icon: <ShieldCheck size={20} />, path: "/admin", roles: ["admin"] },
+    { name: "الإعدادات", icon: <Settings size={20} />, path: "/settings", roles: ["admin", "teacher"] },
   ];
 
   return (
@@ -64,9 +82,36 @@ const Sidebar = () => {
 
       <nav className="flex-1 mt-4 overflow-y-auto">
         <ul className="space-y-1 px-2">
+          {user && (
+            <li className="mb-4">
+              <div className={`text-sidebar-foreground ${collapsed ? 'text-center' : 'px-3'}`}>
+                {collapsed ? (
+                  <div className="flex justify-center">
+                    <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                      {user.name.charAt(0)}
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="font-bold">{user.name}</div>
+                    <div className="text-xs opacity-70">
+                      {user.role === "admin" 
+                        ? "مدير"
+                        : user.role === "teacher" 
+                          ? "معلم" 
+                          : user.role === "proctor" 
+                            ? "مراقب" 
+                            : "طالب"}
+                    </div>
+                  </>
+                )}
+              </div>
+            </li>
+          )}
+          
           {menuItems.map((item) => {
-            // Skip admin-only items if not admin
-            if (item.adminOnly && !isAdmin) return null;
+            // Skip items that the current user doesn't have access to
+            if (user && !item.roles.includes(user.role)) return null;
             
             return (
               <li key={item.path}>
@@ -77,7 +122,7 @@ const Sidebar = () => {
                   } flex items-center py-2 px-3 rounded-md hover:bg-sidebar-item-hover text-sidebar-foreground transition-colors`}
                 >
                   {item.icon}
-                  {!collapsed && <span className="ml-3">{item.name}</span>}
+                  {!collapsed && <span className="mr-3">{item.name}</span>}
                 </Link>
               </li>
             );
@@ -86,13 +131,14 @@ const Sidebar = () => {
       </nav>
 
       <div className="mt-auto p-4 border-t border-sidebar-border">
-        <Link 
-          to={isAdmin ? "/admin" : "/logout"} 
-          className="sidebar-item flex items-center py-2 px-3 rounded-md hover:bg-sidebar-item-hover text-sidebar-foreground transition-colors"
+        <Button 
+          variant="ghost" 
+          className="sidebar-item flex items-center w-full py-2 px-3 rounded-md hover:bg-sidebar-item-hover text-sidebar-foreground transition-colors"
+          onClick={handleLogout}
         >
           <LogOut size={20} />
-          {!collapsed && <span className="ml-3">{isAdmin ? "لوحة المدير" : "تسجيل الخروج"}</span>}
-        </Link>
+          {!collapsed && <span className="mr-3">تسجيل الخروج</span>}
+        </Button>
       </div>
     </aside>
   );
