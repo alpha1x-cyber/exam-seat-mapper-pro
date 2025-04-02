@@ -73,7 +73,7 @@ const RoomVisualizer = ({ rows = 6, cols = 8 }: RoomVisualizerProps) => {
       // Reset all seats
       const newSeats = prevSeats.map(seat => ({
         ...seat,
-        status: "empty",
+        status: "empty" as const,
         studentId: undefined,
         studentName: undefined
       }));
