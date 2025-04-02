@@ -101,8 +101,9 @@ const ExamAttendance = () => {
         </Tabs>
       </div>
       
-      {/* Print styles - added to provide better print capability */}
-      <style jsx global>{`
+      {/* Print styles - fixed to work with TypeScript */}
+      <style>
+        {`
         @media print {
           .print-mode nav,
           .print-mode header,
@@ -138,7 +139,8 @@ const ExamAttendance = () => {
             padding-top: 1rem !important;
           }
         }
-      `}</style>
+        `}
+      </style>
     </PageLayout>
   );
 };

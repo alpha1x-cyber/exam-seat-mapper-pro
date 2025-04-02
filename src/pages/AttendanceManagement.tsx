@@ -394,8 +394,9 @@ const AttendanceManagement = () => {
         </Tabs>
       </div>
 
-      {/* Print styles - added to provide better print capability */}
-      <style jsx global>{`
+      {/* Print styles - fixed to work with TypeScript */}
+      <style>
+        {`
         @media print {
           .print-mode nav,
           .print-mode header,
@@ -421,7 +422,8 @@ const AttendanceManagement = () => {
             margin-bottom: 1rem !important;
           }
         }
-      `}</style>
+        `}
+      </style>
     </PageLayout>
   );
 };
