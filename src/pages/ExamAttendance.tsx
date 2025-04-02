@@ -36,7 +36,7 @@ const ExamAttendance = () => {
 
   return (
     <PageLayout title="إدارة الامتحانات">
-      <div className={printMode ? "print-mode" : ""}>
+      <div dir="rtl" className={printMode ? "print-mode" : ""}>
         <div className="mb-6 flex justify-between items-center flex-wrap gap-4">
           <div>
             <h2 className="text-2xl font-bold">إدارة الامتحانات</h2>

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import PageLayout from "@/components/Layout/PageLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCurrentUser, User } from "@/lib/auth";
-import { Navigate } from "react-router-dom";
+import { Navigate, Link } from "react-router-dom";
 import { 
   Table, 
   TableBody, 
@@ -13,6 +13,8 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Calendar, Clock, MapPin, Book } from "lucide-react";
 
 // Mock data
 const mockAttendanceData = [
@@ -32,10 +34,20 @@ const mockGradesData = [
   { id: 5, subject: "الفيزياء", grade: 65, maxGrade: 100 },
 ];
 
+// Mock exam hall data
+const mockExamHallData = [
+  { id: 1, subject: "الرياضيات", hall: "قاعة 101", seat: "A3", date: "2023-12-15", time: "09:00", duration: "ساعتان" },
+  { id: 2, subject: "العلوم", hall: "قاعة 102", seat: "B2", date: "2023-12-18", time: "10:30", duration: "ساعة ونصف" },
+  { id: 3, subject: "اللغة العربية", hall: "قاعة 101", seat: "A5", date: "2023-12-20", time: "09:00", duration: "ساعتان" },
+  { id: 4, subject: "اللغة الإنجليزية", hall: "قاعة 103", seat: "C1", date: "2023-12-22", time: "11:00", duration: "ساعتان" },
+  { id: 5, subject: "الفيزياء", hall: "قاعة 102", seat: "B4", date: "2023-12-25", time: "09:30", duration: "ساعتان" },
+];
+
 const StudentProfile = () => {
   const [user, setUser] = useState<User | null>(null);
   const [attendanceData, setAttendanceData] = useState(mockAttendanceData);
   const [gradesData, setGradesData] = useState(mockGradesData);
+  const [examHallData, setExamHallData] = useState(mockExamHallData);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -64,12 +76,17 @@ const StudentProfile = () => {
   // Calculate attendance statistics
   const totalClasses = attendanceData.length;
   const attendedClasses = attendanceData.filter(a => a.status === "حاضر").length;
+  const absentClasses = attendanceData.filter(a => a.status === "غائب").length;
   const attendancePercentage = Math.round((attendedClasses / totalClasses) * 100);
 
   // Calculate grade statistics
   const totalGradePoints = gradesData.reduce((sum, item) => sum + item.grade, 0);
   const totalMaxPoints = gradesData.reduce((sum, item) => sum + item.maxGrade, 0);
   const gradePercentage = Math.round((totalGradePoints / totalMaxPoints) * 100);
+
+  // Get present and absent subjects
+  const presentSubjects = attendanceData.filter(a => a.status === "حاضر").map(a => a.subject);
+  const absentSubjects = attendanceData.filter(a => a.status === "غائب").map(a => a.subject);
 
   return (
     <PageLayout title="ملف الطالب">
@@ -103,16 +120,16 @@ const StudentProfile = () => {
           <CardContent>
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">مجموع الأيام</span>
+                <span className="text-muted-foreground">مجموع المواد</span>
                 <span className="font-medium">{totalClasses}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">أيام الحضور</span>
+                <span className="text-muted-foreground">المواد المحضورة</span>
                 <span className="font-medium text-green-600">{attendedClasses}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">أيام الغياب</span>
-                <span className="font-medium text-red-600">{totalClasses - attendedClasses}</span>
+                <span className="text-muted-foreground">المواد المتغيب عنها</span>
+                <span className="font-medium text-red-600">{absentClasses}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">نسبة الحضور</span>
@@ -144,6 +161,100 @@ const StudentProfile = () => {
                   {gradePercentage}%
                 </Badge>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Next row with detailed attendance and grade information */}
+      <div className="grid gap-6 mt-6 md:grid-cols-1">
+        <Card>
+          <CardHeader>
+            <CardTitle>المواد المحضورة والمتغيب عنها</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-6 md:grid-cols-2">
+              <div>
+                <h3 className="text-lg font-medium text-green-600 mb-2">المواد المحضورة ({presentSubjects.length})</h3>
+                <ul className="space-y-2">
+                  {presentSubjects.map((subject, index) => (
+                    <li key={index} className="flex items-center gap-2 bg-green-50 p-2 rounded-md">
+                      <Book className="h-4 w-4 text-green-600" />
+                      <span>{subject}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <h3 className="text-lg font-medium text-red-600 mb-2">المواد المتغيب عنها ({absentSubjects.length})</h3>
+                <ul className="space-y-2">
+                  {absentSubjects.map((subject, index) => (
+                    <li key={index} className="flex items-center gap-2 bg-red-50 p-2 rounded-md">
+                      <Book className="h-4 w-4 text-red-600" />
+                      <span>{subject}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Exam Hall Information */}
+      <div className="grid gap-6 mt-6 md:grid-cols-1">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>معلومات الامتحانات والقاعات</CardTitle>
+            <Link to="/exams">
+              <Button variant="outline" size="sm">
+                جدول الامتحانات الكامل
+              </Button>
+            </Link>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>المادة</TableHead>
+                    <TableHead>القاعة</TableHead>
+                    <TableHead>المقعد</TableHead>
+                    <TableHead>التاريخ</TableHead>
+                    <TableHead>الوقت</TableHead>
+                    <TableHead>المدة</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {examHallData.map((exam) => (
+                    <TableRow key={exam.id}>
+                      <TableCell className="font-medium">{exam.subject}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span>{exam.hall}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{exam.seat}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span>{exam.date}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span>{exam.time}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{exam.duration}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>
