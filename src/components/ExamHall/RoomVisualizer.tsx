@@ -28,9 +28,12 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
 
+// Define the possible seat status values using a union type
+type SeatStatus = "empty" | "occupied" | "proctor";
+
 interface Seat {
   id: number;
-  status: "empty" | "occupied" | "proctor";
+  status: SeatStatus;
   studentId?: string;
   studentName?: string;
 }
@@ -57,7 +60,7 @@ const RoomVisualizer = ({ rows: initialRows = 6, cols: initialCols = 8 }: RoomVi
     
     for (let i = 0; i < totalSeats; i++) {
       // Make some seats occupied for demonstration
-      const randomStatus = Math.random() > 0.7 ? "occupied" as const : "empty" as const;
+      const randomStatus = Math.random() > 0.7 ? "occupied" as SeatStatus : "empty" as SeatStatus;
       
       initialSeats.push({
         id: i,
@@ -75,7 +78,7 @@ const RoomVisualizer = ({ rows: initialRows = 6, cols: initialCols = 8 }: RoomVi
     const proctorPositions = [0, cols - 1, totalSeats - cols, totalSeats - 1];
     proctorPositions.forEach(pos => {
       if (initialSeats[pos]) {
-        initialSeats[pos].status = "proctor" as const;
+        initialSeats[pos].status = "proctor" as SeatStatus;
         initialSeats[pos].studentId = undefined;
         initialSeats[pos].studentName = "مراقب";
       }
@@ -100,10 +103,10 @@ const RoomVisualizer = ({ rows: initialRows = 6, cols: initialCols = 8 }: RoomVi
             ? { 
                 ...seat, 
                 status: seat.status === "empty" 
-                  ? "occupied" as const
+                  ? "occupied" as SeatStatus
                   : seat.status === "occupied" 
-                    ? "proctor" as const
-                    : "empty" as const,
+                    ? "proctor" as SeatStatus
+                    : "empty" as SeatStatus,
                 studentId: seat.status === "empty" ? undefined : seat.studentId,
                 studentName: seat.status === "empty" ? undefined : seat.studentName
               } 
@@ -130,7 +133,7 @@ const RoomVisualizer = ({ rows: initialRows = 6, cols: initialCols = 8 }: RoomVi
         seat.id === selectedSeat.id 
           ? { 
               ...seat, 
-              status: "occupied" as const,
+              status: "occupied" as SeatStatus,
               studentId: studentId || `ST${1000 + seat.id}`,
               studentName: studentName
             } 
@@ -153,7 +156,7 @@ const RoomVisualizer = ({ rows: initialRows = 6, cols: initialCols = 8 }: RoomVi
       // Reset all seats
       const newSeats = prevSeats.map(seat => ({
         ...seat,
-        status: "empty" as const,
+        status: "empty" as SeatStatus,
         studentId: undefined,
         studentName: undefined
       }));
@@ -162,7 +165,7 @@ const RoomVisualizer = ({ rows: initialRows = 6, cols: initialCols = 8 }: RoomVi
       const proctorPositions = [0, cols - 1, (rows - 1) * cols, rows * cols - 1];
       proctorPositions.forEach(pos => {
         if (newSeats[pos]) {
-          newSeats[pos].status = "proctor" as const;
+          newSeats[pos].status = "proctor" as SeatStatus;
           newSeats[pos].studentName = "مراقب";
         }
       });
@@ -177,7 +180,7 @@ const RoomVisualizer = ({ rows: initialRows = 6, cols: initialCols = 8 }: RoomVi
           
           // Create a checkerboard pattern (skip every other seat)
           if ((r + c) % 2 === 0) {
-            newSeats[index].status = "occupied" as const;
+            newSeats[index].status = "occupied" as SeatStatus;
             newSeats[index].studentId = `ST${1000 + studentCount}`;
             newSeats[index].studentName = `طالب ${studentCount}`;
             studentCount++;
@@ -200,7 +203,7 @@ const RoomVisualizer = ({ rows: initialRows = 6, cols: initialCols = 8 }: RoomVi
       // Reset all seats
       const newSeats = prevSeats.map(seat => ({
         ...seat,
-        status: "empty" as const,
+        status: "empty" as SeatStatus,
         studentId: undefined,
         studentName: undefined
       }));
@@ -209,7 +212,7 @@ const RoomVisualizer = ({ rows: initialRows = 6, cols: initialCols = 8 }: RoomVi
       const proctorPositions = [0, cols - 1, (rows - 1) * cols, rows * cols - 1];
       proctorPositions.forEach(pos => {
         if (newSeats[pos]) {
-          newSeats[pos].status = "proctor" as const;
+          newSeats[pos].status = "proctor" as SeatStatus;
           newSeats[pos].studentName = "مراقب";
         }
       });
@@ -221,7 +224,7 @@ const RoomVisualizer = ({ rows: initialRows = 6, cols: initialCols = 8 }: RoomVi
         for (let c = 1; c < cols; c += 2) {
           const index = r * cols + c;
           if (index < newSeats.length) {
-            newSeats[index].status = "occupied" as const;
+            newSeats[index].status = "occupied" as SeatStatus;
             newSeats[index].studentId = `ST${1000 + studentCount}`;
             newSeats[index].studentName = `طالب ${studentCount}`;
             studentCount++;
@@ -234,7 +237,7 @@ const RoomVisualizer = ({ rows: initialRows = 6, cols: initialCols = 8 }: RoomVi
         for (let c = 0; c < cols; c += 2) {
           const index = r * cols + c;
           if (index < newSeats.length && !proctorPositions.includes(index) && newSeats[index].status === "empty") {
-            newSeats[index].status = "occupied" as const;
+            newSeats[index].status = "occupied" as SeatStatus;
             newSeats[index].studentId = `ST${1000 + studentCount}`;
             newSeats[index].studentName = `طالب ${studentCount}`;
             studentCount++;
@@ -268,7 +271,7 @@ const RoomVisualizer = ({ rows: initialRows = 6, cols: initialCols = 8 }: RoomVi
     for (let i = 0; i < totalSeats; i++) {
       newSeats.push({
         id: i,
-        status: "empty" as const
+        status: "empty" as SeatStatus
       });
     }
     
@@ -276,7 +279,7 @@ const RoomVisualizer = ({ rows: initialRows = 6, cols: initialCols = 8 }: RoomVi
     const proctorPositions = [0, cols - 1, (rows - 1) * cols, rows * cols - 1];
     proctorPositions.forEach(pos => {
       if (newSeats[pos]) {
-        newSeats[pos].status = "proctor" as const;
+        newSeats[pos].status = "proctor" as SeatStatus;
         newSeats[pos].studentName = "مراقب";
       }
     });
@@ -304,7 +307,109 @@ const RoomVisualizer = ({ rows: initialRows = 6, cols: initialCols = 8 }: RoomVi
   };
 
   const printRoomLayout = () => {
-    window.print();
+    // Create a printable view with student and proctor names
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html dir="rtl">
+          <head>
+            <title>خريطة القاعة - طباعة</title>
+            <style>
+              body { font-family: 'Tajawal', Arial, sans-serif; margin: 20px; }
+              h1 { text-align: center; margin-bottom: 20px; }
+              .date { text-align: center; margin-bottom: 20px; font-size: 14px; }
+              .grid { display: grid; grid-template-columns: repeat(${cols}, 1fr); gap: 10px; margin-bottom: 30px; }
+              .seat { border: 1px solid #ccc; padding: 10px; text-align: center; min-height: 60px; }
+              .empty { background-color: #f9fafb; }
+              .occupied { background-color: #dbeafe; }
+              .proctor { background-color: #fee2e2; }
+              .teacher-desk { grid-column: 1 / -1; text-align: center; background-color: #e5e7eb; padding: 10px; margin-bottom: 20px; }
+              .lists { display: flex; gap: 20px; margin-top: 30px; }
+              .list { flex: 1; }
+              table { width: 100%; border-collapse: collapse; }
+              th, td { border: 1px solid #e5e7eb; padding: 8px; text-align: right; }
+              th { background-color: #f3f4f6; }
+              @media print {
+                @page { size: landscape; }
+                body { font-size: 12px; }
+                button { display: none; }
+              }
+            </style>
+          </head>
+          <body>
+            <h1>خريطة القاعة وتوزيع المقاعد</h1>
+            <div class="date">تاريخ الطباعة: ${new Date().toLocaleDateString('ar-SA')}</div>
+            
+            <div class="teacher-desk">منصة المعلم</div>
+            
+            <div class="grid">
+              ${seats.map(seat => `
+                <div class="seat ${seat.status}">
+                  ${seat.studentName ? `<strong>${seat.studentName}</strong><br>` : ''}
+                  ${seat.studentId || ''}
+                </div>
+              `).join('')}
+            </div>
+            
+            <div class="lists">
+              <div class="list">
+                <h3>قائمة الطلاب</h3>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>رقم الطالب</th>
+                      <th>اسم الطالب</th>
+                      <th>رقم المقعد</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${seats
+                      .filter(seat => seat.status === "occupied")
+                      .sort((a, b) => (a.studentId || '').localeCompare(b.studentId || ''))
+                      .map(seat => `
+                        <tr>
+                          <td>${seat.studentId || ''}</td>
+                          <td>${seat.studentName || ''}</td>
+                          <td>${seat.id + 1}</td>
+                        </tr>
+                      `).join('')}
+                  </tbody>
+                </table>
+              </div>
+              
+              <div class="list">
+                <h3>قائمة المراقبين</h3>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>اسم المراقب</th>
+                      <th>رقم المقعد</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${seats
+                      .filter(seat => seat.status === "proctor")
+                      .map(seat => `
+                        <tr>
+                          <td>${seat.studentName || 'مراقب'}</td>
+                          <td>${seat.id + 1}</td>
+                        </tr>
+                      `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px;">
+              <button onclick="window.print()">طباعة</button>
+              <button onclick="window.close()">إغلاق</button>
+            </div>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+    }
   };
 
   const handleAddProctor = () => {
@@ -324,7 +429,7 @@ const RoomVisualizer = ({ rows: initialRows = 6, cols: initialCols = 8 }: RoomVi
         index === emptySeatIndex
           ? {
               ...seat,
-              status: "proctor" as const,
+              status: "proctor" as SeatStatus,
               studentName: "مراقب",
               studentId: undefined
             }
