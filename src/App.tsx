@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import HallManagement from "./pages/HallManagement";
 import ExamAttendance from "./pages/ExamAttendance";
 import StudentSearch from "./pages/StudentSearch";
+import AdminPanel from "./pages/AdminPanel";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ const App = () => {
             <Route path="/halls" element={<HallManagement />} />
             <Route path="/exams" element={<ExamAttendance />} />
             <Route path="/students" element={<StudentSearch />} />
+            <Route path="/admin" element={<AdminPanel />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

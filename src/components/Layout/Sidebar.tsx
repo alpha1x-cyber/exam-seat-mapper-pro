@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   HomeIcon,
@@ -12,13 +12,21 @@ import {
   Menu,
   ChevronLeft,
   ChevronRight,
+  ShieldCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const Sidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const location = useLocation();
   const isRTL = document.documentElement.dir === "rtl";
+  
+  useEffect(() => {
+    // Check if admin is logged in
+    const adminStatus = localStorage.getItem("isAdmin") === "true";
+    setIsAdmin(adminStatus);
+  }, [location.pathname]); // Re-check when route changes
   
   const menuItems = [
     { name: "الرئيسية", icon: <HomeIcon size={20} />, path: "/" },
@@ -26,6 +34,7 @@ const Sidebar = () => {
     { name: "القاعات", icon: <MapPin size={20} />, path: "/halls" },
     { name: "الامتحانات", icon: <CalendarDays size={20} />, path: "/exams" },
     { name: "المراقبين", icon: <ClipboardList size={20} />, path: "/proctors" },
+    { name: "لوحة المدير", icon: <ShieldCheck size={20} />, path: "/admin", adminOnly: true },
     { name: "الإعدادات", icon: <Settings size={20} />, path: "/settings" },
   ];
 
@@ -55,26 +64,34 @@ const Sidebar = () => {
 
       <nav className="flex-1 mt-4 overflow-y-auto">
         <ul className="space-y-1 px-2">
-          {menuItems.map((item) => (
-            <li key={item.path}>
-              <Link
-                to={item.path}
-                className={`sidebar-item ${
-                  location.pathname === item.path ? "active" : ""
-                }`}
-              >
-                {item.icon}
-                {!collapsed && <span>{item.name}</span>}
-              </Link>
-            </li>
-          ))}
+          {menuItems.map((item) => {
+            // Skip admin-only items if not admin
+            if (item.adminOnly && !isAdmin) return null;
+            
+            return (
+              <li key={item.path}>
+                <Link
+                  to={item.path}
+                  className={`sidebar-item ${
+                    location.pathname === item.path ? "active" : ""
+                  } flex items-center py-2 px-3 rounded-md hover:bg-sidebar-item-hover text-sidebar-foreground transition-colors`}
+                >
+                  {item.icon}
+                  {!collapsed && <span className="ml-3">{item.name}</span>}
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       </nav>
 
       <div className="mt-auto p-4 border-t border-sidebar-border">
-        <Link to="/logout" className="sidebar-item">
+        <Link 
+          to={isAdmin ? "/admin" : "/logout"} 
+          className="sidebar-item flex items-center py-2 px-3 rounded-md hover:bg-sidebar-item-hover text-sidebar-foreground transition-colors"
+        >
           <LogOut size={20} />
-          {!collapsed && <span>تسجيل الخروج</span>}
+          {!collapsed && <span className="ml-3">{isAdmin ? "لوحة المدير" : "تسجيل الخروج"}</span>}
         </Link>
       </div>
     </aside>
