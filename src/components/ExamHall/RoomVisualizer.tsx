@@ -23,7 +23,7 @@ const RoomVisualizer = ({ rows = 6, cols = 8 }: RoomVisualizerProps) => {
     
     for (let i = 0; i < totalSeats; i++) {
       // Make some seats occupied for demonstration
-      const randomStatus = Math.random() > 0.7 ? "occupied" : "empty";
+      const randomStatus = Math.random() > 0.7 ? "occupied" as const : "empty" as const;
       
       initialSeats.push({
         id: i,
@@ -57,10 +57,10 @@ const RoomVisualizer = ({ rows = 6, cols = 8 }: RoomVisualizerProps) => {
           ? { 
               ...seat, 
               status: seat.status === "empty" 
-                ? "occupied" 
+                ? "occupied" as const
                 : seat.status === "occupied" 
-                  ? "proctor" 
-                  : "empty" 
+                  ? "proctor" as const
+                  : "empty" as const
             } 
           : seat
       )
@@ -82,7 +82,7 @@ const RoomVisualizer = ({ rows = 6, cols = 8 }: RoomVisualizerProps) => {
       const proctorPositions = [0, cols - 1, (rows - 1) * cols, rows * cols - 1];
       proctorPositions.forEach(pos => {
         if (newSeats[pos]) {
-          newSeats[pos].status = "proctor";
+          newSeats[pos].status = "proctor" as const;
           newSeats[pos].studentName = "مراقب";
         }
       });
@@ -97,7 +97,7 @@ const RoomVisualizer = ({ rows = 6, cols = 8 }: RoomVisualizerProps) => {
           
           // Create a checkerboard pattern (skip every other seat)
           if ((r + c) % 2 === 0) {
-            newSeats[index].status = "occupied";
+            newSeats[index].status = "occupied" as const;
             newSeats[index].studentId = `ST${1000 + studentCount}`;
             newSeats[index].studentName = `طالب ${studentCount}`;
             studentCount++;
