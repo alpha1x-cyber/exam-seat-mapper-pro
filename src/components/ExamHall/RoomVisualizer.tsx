@@ -1,706 +1,304 @@
 
 import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger 
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import {
-  PrinterIcon,
-  RefreshCw,
-  Save,
-  Settings,
-  Plus,
-  Minus,
-  Users,
-  UserPlus
-} from "lucide-react";
-import {
+import { useToast } from "@/components/ui/use-toast";
+import { 
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { useToast } from "@/components/ui/use-toast";
+import { MapPin, User, Ban, Save, Printer } from "lucide-react";
 
-// Define the possible seat status values using a union type
-type SeatStatus = "empty" | "occupied" | "proctor";
+interface RoomVisualizerProps {
+  rows: number;
+  cols: number;
+  hallName?: string;
+}
+
+// Types for seat status
+type SeatStatus = "available" | "occupied" | "disabled";
 
 interface Seat {
-  id: number;
+  id: string;
   status: SeatStatus;
   studentId?: string;
   studentName?: string;
 }
 
-interface RoomVisualizerProps {
-  rows?: number;
-  cols?: number;
-}
+const RoomVisualizer = ({ rows = 6, cols = 8, hallName = "القاعة" }: RoomVisualizerProps) => {
+  // Create initial seats grid
+  const initialSeats: Seat[][] = Array(rows)
+    .fill(null)
+    .map((_, rowIndex) =>
+      Array(cols)
+        .fill(null)
+        .map((_, colIndex) => ({
+          id: `${String.fromCharCode(65 + rowIndex)}${colIndex + 1}`,
+          status: "available",
+        }))
+    );
 
-const RoomVisualizer = ({ rows: initialRows = 6, cols: initialCols = 8 }: RoomVisualizerProps) => {
-  const [rows, setRows] = useState(initialRows);
-  const [cols, setCols] = useState(initialCols);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showStudentDialog, setShowStudentDialog] = useState(false);
+  const [seats, setSeats] = useState<Seat[][]>(initialSeats);
   const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null);
-  const [studentName, setStudentName] = useState("");
-  const [studentId, setStudentId] = useState("");
+  const [seatDialogOpen, setSeatDialogOpen] = useState(false);
   const { toast } = useToast();
+  
+  // Count of seats by status
+  const availableSeats = seats.flat().filter(seat => seat.status === "available").length;
+  const occupiedSeats = seats.flat().filter(seat => seat.status === "occupied").length;
+  const disabledSeats = seats.flat().filter(seat => seat.status === "disabled").length;
 
-  const [seats, setSeats] = useState<Seat[]>(() => {
-    // Generate initial seats
-    const initialSeats: Seat[] = [];
-    const totalSeats = rows * cols;
-    
-    for (let i = 0; i < totalSeats; i++) {
-      // Make some seats occupied for demonstration
-      const randomStatus = Math.random() > 0.7 ? "occupied" as SeatStatus : "empty" as SeatStatus;
-      
-      initialSeats.push({
-        id: i,
-        status: randomStatus,
-        ...(randomStatus === "occupied" 
-          ? { 
-              studentId: `ST${1000 + i}`,
-              studentName: `طالب ${i + 1}`
-            } 
-          : {})
-      });
-    }
-    
-    // Add proctors at strategic positions
-    const proctorPositions = [0, cols - 1, totalSeats - cols, totalSeats - 1];
-    proctorPositions.forEach(pos => {
-      if (initialSeats[pos]) {
-        initialSeats[pos].status = "proctor" as SeatStatus;
-        initialSeats[pos].studentId = undefined;
-        initialSeats[pos].studentName = "مراقب";
-      }
-    });
-    
-    return initialSeats;
-  });
-
-  const handleSeatClick = (seatId: number) => {
-    const seat = seats.find(s => s.id === seatId);
-    if (!seat) return;
-
-    if (seat.status === "empty") {
-      setSelectedSeat(seat);
-      setStudentName("");
-      setStudentId("");
-      setShowStudentDialog(true);
-    } else {
-      setSeats(prevSeats => 
-        prevSeats.map(seat => 
-          seat.id === seatId 
-            ? { 
-                ...seat, 
-                status: seat.status === "empty" 
-                  ? "occupied" as SeatStatus
-                  : seat.status === "occupied" 
-                    ? "proctor" as SeatStatus
-                    : "empty" as SeatStatus,
-                studentId: seat.status === "empty" ? undefined : seat.studentId,
-                studentName: seat.status === "empty" ? undefined : seat.studentName
-              } 
-            : seat
-        )
-      );
-    }
+  const handleSeatClick = (seat: Seat, rowIndex: number, colIndex: number) => {
+    // Make a copy of the seat so we can edit it in the dialog
+    setSelectedSeat({ ...seat, rowIndex, colIndex });
+    setSeatDialogOpen(true);
   };
 
-  const handleAddStudent = () => {
+  const handleUpdateSeat = () => {
     if (!selectedSeat) return;
     
-    if (!studentName.trim()) {
-      toast({
-        title: "خطأ",
-        description: "الرجاء إدخال اسم الطالب",
-        variant: "destructive",
-      });
-      return;
-    }
+    const { rowIndex, colIndex, ...seatData } = selectedSeat as Seat & { rowIndex: number; colIndex: number };
     
-    setSeats(prevSeats => 
-      prevSeats.map(seat => 
-        seat.id === selectedSeat.id 
-          ? { 
-              ...seat, 
-              status: "occupied" as SeatStatus,
-              studentId: studentId || `ST${1000 + seat.id}`,
-              studentName: studentName
-            } 
-          : seat
-      )
-    );
+    // Create a deep copy of the seats array
+    const updatedSeats = [...seats];
+    updatedSeats[rowIndex] = [...seats[rowIndex]];
+    updatedSeats[rowIndex][colIndex] = seatData;
     
-    setShowStudentDialog(false);
-    setSelectedSeat(null);
+    setSeats(updatedSeats);
+    setSeatDialogOpen(false);
     
     toast({
-      title: "تم الإضافة بنجاح",
-      description: `تم تعيين ${studentName} إلى المقعد رقم ${selectedSeat.id + 1}`,
+      title: "تم تحديث المقعد",
+      description: `تم تحديث حالة المقعد ${seatData.id} بنجاح`,
     });
   };
-
-  const autoAssign = () => {
-    // Simple auto-assignment algorithm
-    setSeats(prevSeats => {
-      // Reset all seats
-      const newSeats = prevSeats.map(seat => ({
-        ...seat,
-        status: "empty" as SeatStatus,
+  
+  const handleUpdateSeatStatus = (status: SeatStatus) => {
+    if (!selectedSeat) return;
+    
+    // If changing to available, remove student info
+    if (status === "available") {
+      setSelectedSeat({
+        ...selectedSeat,
+        status,
         studentId: undefined,
-        studentName: undefined
-      }));
-      
-      // Place proctors at corners
-      const proctorPositions = [0, cols - 1, (rows - 1) * cols, rows * cols - 1];
-      proctorPositions.forEach(pos => {
-        if (newSeats[pos]) {
-          newSeats[pos].status = "proctor" as SeatStatus;
-          newSeats[pos].studentName = "مراقب";
-        }
+        studentName: undefined,
       });
-      
-      // Place students with spacing (checkerboard pattern)
-      let studentCount = 1;
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const index = r * cols + c;
-          // Skip if already a proctor
-          if (newSeats[index].status === "proctor") continue;
-          
-          // Create a checkerboard pattern (skip every other seat)
-          if ((r + c) % 2 === 0) {
-            newSeats[index].status = "occupied" as SeatStatus;
-            newSeats[index].studentId = `ST${1000 + studentCount}`;
-            newSeats[index].studentName = `طالب ${studentCount}`;
-            studentCount++;
-          }
-        }
-      }
-
-      toast({
-        title: "تم التوزيع بنجاح",
-        description: `تم توزيع ${studentCount - 1} طالب في القاعة`,
-      });
-      
-      return newSeats;
-    });
-  };
-
-  const optimizeDistribution = () => {
-    // More advanced algorithm with social distancing
-    setSeats(prevSeats => {
-      // Reset all seats
-      const newSeats = prevSeats.map(seat => ({
-        ...seat,
-        status: "empty" as SeatStatus,
-        studentId: undefined,
-        studentName: undefined
-      }));
-      
-      // Place proctors at strategic positions
-      const proctorPositions = [0, cols - 1, (rows - 1) * cols, rows * cols - 1];
-      proctorPositions.forEach(pos => {
-        if (newSeats[pos]) {
-          newSeats[pos].status = "proctor" as SeatStatus;
-          newSeats[pos].studentName = "مراقب";
-        }
-      });
-      
-      // Place students with maximum spacing
-      let studentCount = 1;
-      // First row, then skipping 1
-      for (let r = 1; r < rows; r += 2) {
-        for (let c = 1; c < cols; c += 2) {
-          const index = r * cols + c;
-          if (index < newSeats.length) {
-            newSeats[index].status = "occupied" as SeatStatus;
-            newSeats[index].studentId = `ST${1000 + studentCount}`;
-            newSeats[index].studentName = `طالب ${studentCount}`;
-            studentCount++;
-          }
-        }
-      }
-      
-      // Second pass to add more students if needed
-      for (let r = 0; r < rows; r += 2) {
-        for (let c = 0; c < cols; c += 2) {
-          const index = r * cols + c;
-          if (index < newSeats.length && !proctorPositions.includes(index) && newSeats[index].status === "empty") {
-            newSeats[index].status = "occupied" as SeatStatus;
-            newSeats[index].studentId = `ST${1000 + studentCount}`;
-            newSeats[index].studentName = `طالب ${studentCount}`;
-            studentCount++;
-          }
-        }
-      }
-
-      toast({
-        title: "تم التوزيع الأمثل",
-        description: `تم توزيع ${studentCount - 1} طالب بالتباعد الأمثل`,
-      });
-      
-      return newSeats;
-    });
-  };
-
-  const handleRoomSizeUpdate = () => {
-    if (rows < 2 || cols < 2) {
-      toast({
-        title: "خطأ",
-        description: "يجب أن يكون عدد الصفوف والأعمدة 2 على الأقل",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // Generate new seats with the updated dimensions
-    const newSeats: Seat[] = [];
-    const totalSeats = rows * cols;
-    
-    for (let i = 0; i < totalSeats; i++) {
-      newSeats.push({
-        id: i,
-        status: "empty" as SeatStatus
+    } else {
+      setSelectedSeat({
+        ...selectedSeat,
+        status,
       });
     }
-    
-    // Add proctors at corners
-    const proctorPositions = [0, cols - 1, (rows - 1) * cols, rows * cols - 1];
-    proctorPositions.forEach(pos => {
-      if (newSeats[pos]) {
-        newSeats[pos].status = "proctor" as SeatStatus;
-        newSeats[pos].studentName = "مراقب";
-      }
-    });
-    
-    setSeats(newSeats);
-    setShowSettings(false);
-    
-    toast({
-      title: "تم تحديث حجم القاعة",
-      description: `تم تعديل أبعاد القاعة إلى ${rows} صفوف و ${cols} أعمدة`,
-    });
   };
-
-  const incrementRows = () => setRows(prev => Math.min(prev + 1, 12));
-  const decrementRows = () => setRows(prev => Math.max(prev - 1, 2));
-  const incrementCols = () => setCols(prev => Math.min(prev + 1, 12));
-  const decrementCols = () => setCols(prev => Math.max(prev - 1, 2));
-
-  const saveRoomLayout = () => {
-    // In a real app, this would save to a database
-    toast({
-      title: "تم الحفظ",
-      description: "تم حفظ تخطيط القاعة بنجاح",
-    });
+  
+  const handlePrint = () => {
+    window.print();
   };
-
-  const printRoomLayout = () => {
-    // Create a printable view with student and proctor names
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(`
-        <html dir="rtl">
-          <head>
-            <title>خريطة القاعة - طباعة</title>
-            <style>
-              body { font-family: 'Tajawal', Arial, sans-serif; margin: 20px; }
-              h1 { text-align: center; margin-bottom: 20px; }
-              .date { text-align: center; margin-bottom: 20px; font-size: 14px; }
-              .grid { display: grid; grid-template-columns: repeat(${cols}, 1fr); gap: 10px; margin-bottom: 30px; }
-              .seat { border: 1px solid #ccc; padding: 10px; text-align: center; min-height: 60px; }
-              .empty { background-color: #f9fafb; }
-              .occupied { background-color: #dbeafe; }
-              .proctor { background-color: #fee2e2; }
-              .teacher-desk { grid-column: 1 / -1; text-align: center; background-color: #e5e7eb; padding: 10px; margin-bottom: 20px; }
-              .lists { display: flex; gap: 20px; margin-top: 30px; }
-              .list { flex: 1; }
-              table { width: 100%; border-collapse: collapse; }
-              th, td { border: 1px solid #e5e7eb; padding: 8px; text-align: right; }
-              th { background-color: #f3f4f6; }
-              @media print {
-                @page { size: landscape; }
-                body { font-size: 12px; }
-                button { display: none; }
-              }
-            </style>
-          </head>
-          <body>
-            <h1>خريطة القاعة وتوزيع المقاعد</h1>
-            <div class="date">تاريخ الطباعة: ${new Date().toLocaleDateString('ar-SA')}</div>
-            
-            <div class="teacher-desk">منصة المعلم</div>
-            
-            <div class="grid">
-              ${seats.map(seat => `
-                <div class="seat ${seat.status}">
-                  ${seat.studentName ? `<strong>${seat.studentName}</strong><br>` : ''}
-                  ${seat.studentId || ''}
-                </div>
-              `).join('')}
-            </div>
-            
-            <div class="lists">
-              <div class="list">
-                <h3>قائمة الطلاب</h3>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>رقم الطالب</th>
-                      <th>اسم الطالب</th>
-                      <th>رقم المقعد</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${seats
-                      .filter(seat => seat.status === "occupied")
-                      .sort((a, b) => (a.studentId || '').localeCompare(b.studentId || ''))
-                      .map(seat => `
-                        <tr>
-                          <td>${seat.studentId || ''}</td>
-                          <td>${seat.studentName || ''}</td>
-                          <td>${seat.id + 1}</td>
-                        </tr>
-                      `).join('')}
-                  </tbody>
-                </table>
-              </div>
-              
-              <div class="list">
-                <h3>قائمة المراقبين</h3>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>اسم المراقب</th>
-                      <th>رقم المقعد</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${seats
-                      .filter(seat => seat.status === "proctor")
-                      .map(seat => `
-                        <tr>
-                          <td>${seat.studentName || 'مراقب'}</td>
-                          <td>${seat.id + 1}</td>
-                        </tr>
-                      `).join('')}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-            
-            <div style="text-align: center; margin-top: 30px;">
-              <button onclick="window.print()">طباعة</button>
-              <button onclick="window.close()">إغلاق</button>
-            </div>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
-      printWindow.focus();
+  
+  const getSeatColor = (status: SeatStatus) => {
+    switch (status) {
+      case "available":
+        return "bg-green-100 hover:bg-green-200 border-green-300";
+      case "occupied":
+        return "bg-blue-100 hover:bg-blue-200 border-blue-300";
+      case "disabled":
+        return "bg-gray-100 hover:bg-gray-200 border-gray-300";
+      default:
+        return "bg-white";
     }
-  };
-
-  const handleAddProctor = () => {
-    const emptySeatIndex = seats.findIndex(seat => seat.status === "empty");
-    
-    if (emptySeatIndex === -1) {
-      toast({
-        title: "لا توجد مقاعد فارغة",
-        description: "لا يمكن إضافة مراقب جديد لعدم توفر مقاعد فارغة",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setSeats(prevSeats =>
-      prevSeats.map((seat, index) =>
-        index === emptySeatIndex
-          ? {
-              ...seat,
-              status: "proctor" as SeatStatus,
-              studentName: "مراقب",
-              studentId: undefined
-            }
-          : seat
-      )
-    );
-    
-    toast({
-      title: "تمت الإضافة",
-      description: "تم إضافة مراقب جديد إلى القاعة",
-    });
   };
 
   return (
-    <div className="rounded-lg border shadow-sm bg-white p-6">
-      <div className="mb-4 flex flex-wrap justify-between items-center gap-2">
-        <h3 className="text-xl font-semibold">خريطة القاعة</h3>
-        <div className="flex gap-2 flex-wrap">
-          <TooltipProvider>
-            <Dialog open={showSettings} onOpenChange={setShowSettings}>
-              <DialogTrigger asChild>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <Settings className="h-4 w-4 ml-2" />
-                      إعدادات القاعة
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>تغيير أبعاد القاعة وإعدادات أخرى</p>
-                  </TooltipContent>
-                </Tooltip>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>إعدادات القاعة</DialogTitle>
-                  <DialogDescription>
-                    تعديل أبعاد القاعة وإعدادات توزيع المقاعد
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="py-4 space-y-4">
-                  <div className="space-y-2">
-                    <label htmlFor="rows">عدد الصفوف:</label>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={decrementRows}
-                        disabled={rows <= 2}
-                      >
-                        <Minus className="h-4 w-4" />
-                      </Button>
-                      <Input
-                        id="rows"
-                        type="number"
-                        min="2"
-                        max="12"
-                        value={rows}
-                        onChange={(e) => setRows(parseInt(e.target.value) || 2)}
-                        className="w-20 text-center"
-                      />
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={incrementRows}
-                        disabled={rows >= 12}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="cols">عدد الأعمدة:</label>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={decrementCols}
-                        disabled={cols <= 2}
-                      >
-                        <Minus className="h-4 w-4" />
-                      </Button>
-                      <Input
-                        id="cols"
-                        type="number"
-                        min="2"
-                        max="12"
-                        value={cols}
-                        onChange={(e) => setCols(parseInt(e.target.value) || 2)}
-                        className="w-20 text-center"
-                      />
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={incrementCols}
-                        disabled={cols >= 12}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <Button onClick={handleRoomSizeUpdate} className="w-full">
-                    تحديث أبعاد القاعة
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </TooltipProvider>
-
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" onClick={autoAssign}>
-                  <RefreshCw className="h-4 w-4 ml-2" />
-                  توزيع تلقائي
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>توزيع الطلاب بشكل متساوي في القاعة</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" onClick={optimizeDistribution}>
-                  <Users className="h-4 w-4 ml-2" />
-                  توزيع أمثل
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>توزيع الطلاب بالتباعد الأمثل</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" onClick={handleAddProctor}>
-                  <UserPlus className="h-4 w-4 ml-2" />
-                  إضافة مراقب
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>إضافة مراقب إلى مقعد فارغ</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" onClick={saveRoomLayout}>
-                  <Save className="h-4 w-4 ml-2" />
-                  حفظ التوزيع
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>حفظ تخطيط القاعة الحالي</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" onClick={printRoomLayout}>
-                  <PrinterIcon className="h-4 w-4 ml-2" />
-                  طباعة
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>طباعة خريطة القاعة</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      </div>
-
-      <Dialog open={showStudentDialog} onOpenChange={setShowStudentDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>إضافة طالب إلى المقعد</DialogTitle>
-            <DialogDescription>
-              {selectedSeat && `إضافة طالب إلى المقعد رقم ${selectedSeat.id + 1}`}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4 space-y-4">
-            <div className="space-y-2">
-              <label htmlFor="studentName">اسم الطالب:</label>
-              <Input
-                id="studentName"
-                value={studentName}
-                onChange={(e) => setStudentName(e.target.value)}
-                placeholder="أدخل اسم الطالب"
-              />
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="studentId">رقم الطالب (اختياري):</label>
-              <Input
-                id="studentId"
-                value={studentId}
-                onChange={(e) => setStudentId(e.target.value)}
-                placeholder="أدخل رقم الطالب"
-              />
-            </div>
-            <Button onClick={handleAddStudent} className="w-full">
-              إضافة الطالب
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-center flex-wrap gap-2">
+            <CardTitle>{hallName}</CardTitle>
+            <Button variant="outline" onClick={handlePrint} className="print-hidden">
+              <Printer className="ml-2 h-4 w-4" />
+              طباعة
             </Button>
           </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <div className="bg-green-50 p-3 rounded border border-green-200 text-center">
+              <div className="text-lg font-medium">{availableSeats}</div>
+              <div className="text-sm text-muted-foreground">مقعد متاح</div>
+            </div>
+            <div className="bg-blue-50 p-3 rounded border border-blue-200 text-center">
+              <div className="text-lg font-medium">{occupiedSeats}</div>
+              <div className="text-sm text-muted-foreground">مقعد محجوز</div>
+            </div>
+            <div className="bg-gray-50 p-3 rounded border border-gray-200 text-center">
+              <div className="text-lg font-medium">{disabledSeats}</div>
+              <div className="text-sm text-muted-foreground">مقعد معطل</div>
+            </div>
+            <div className="bg-gray-50 p-3 rounded border border-gray-200 text-center">
+              <div className="text-lg font-medium">{rows * cols}</div>
+              <div className="text-sm text-muted-foreground">إجمالي المقاعد</div>
+            </div>
+          </div>
+          
+          <div className="flex justify-center pb-4">
+            <div className="border border-dashed border-gray-300 p-4 rounded-lg text-center w-full md:w-2/3 mx-auto">
+              <div className="font-medium mb-2">مقدمة القاعة</div>
+              
+              <div className="grid" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gap: '0.5rem' }}>
+                {seats.map((row, rowIndex) =>
+                  row.map((seat, colIndex) => (
+                    <TooltipProvider key={`${rowIndex}-${colIndex}`}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            className={`seat-button aspect-square p-1 sm:p-2 border rounded-md flex items-center justify-center ${getSeatColor(
+                              seat.status
+                            )}`}
+                            onClick={() => handleSeatClick(seat, rowIndex, colIndex)}
+                          >
+                            <span className="text-xs sm:text-sm font-medium">{seat.id}</span>
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          <div className="text-center">
+                            <div className="font-bold">{seat.id}</div>
+                            {seat.status === "occupied" && seat.studentName && (
+                              <div className="text-xs">{seat.studentName}</div>
+                            )}
+                            <div className="text-xs">
+                              {seat.status === "available"
+                                ? "متاح"
+                                : seat.status === "occupied"
+                                ? "محجوز"
+                                : "معطل"}
+                            </div>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  ))
+                )}
+              </div>
+              
+              <div className="font-medium mt-4">مؤخرة القاعة</div>
+            </div>
+          </div>
+          
+          <div className="flex justify-center gap-3 text-sm text-muted-foreground">
+            <div className="flex items-center">
+              <div className="w-3 h-3 bg-green-100 border border-green-300 rounded-sm ml-1"></div>
+              <span>متاح</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-3 h-3 bg-blue-100 border border-blue-300 rounded-sm ml-1"></div>
+              <span>محجوز</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-3 h-3 bg-gray-100 border border-gray-300 rounded-sm ml-1"></div>
+              <span>معطل</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={seatDialogOpen} onOpenChange={setSeatDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>تعديل بيانات المقعد {selectedSeat?.id}</DialogTitle>
+          </DialogHeader>
+          {selectedSeat && (
+            <div className="space-y-4 py-2">
+              <div className="grid grid-cols-3 gap-2">
+                <Button
+                  variant={selectedSeat.status === "available" ? "default" : "outline"}
+                  className="flex flex-col items-center py-3"
+                  onClick={() => handleUpdateSeatStatus("available")}
+                >
+                  <MapPin className="h-5 w-5 mb-1" />
+                  <span className="text-xs">متاح</span>
+                </Button>
+                <Button
+                  variant={selectedSeat.status === "occupied" ? "default" : "outline"}
+                  className="flex flex-col items-center py-3"
+                  onClick={() => handleUpdateSeatStatus("occupied")}
+                >
+                  <User className="h-5 w-5 mb-1" />
+                  <span className="text-xs">محجوز</span>
+                </Button>
+                <Button
+                  variant={selectedSeat.status === "disabled" ? "default" : "outline"}
+                  className="flex flex-col items-center py-3"
+                  onClick={() => handleUpdateSeatStatus("disabled")}
+                >
+                  <Ban className="h-5 w-5 mb-1" />
+                  <span className="text-xs">معطل</span>
+                </Button>
+              </div>
+              
+              {selectedSeat.status === "occupied" && (
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="student-id">رقم الطالب</Label>
+                    <Input
+                      id="student-id"
+                      value={selectedSeat.studentId || ""}
+                      onChange={(e) =>
+                        setSelectedSeat({
+                          ...selectedSeat,
+                          studentId: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="student-name">اسم الطالب</Label>
+                    <Input
+                      id="student-name"
+                      value={selectedSeat.studentName || ""}
+                      onChange={(e) =>
+                        setSelectedSeat({
+                          ...selectedSeat,
+                          studentName: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              )}
+              
+              <Button
+                className="w-full"
+                onClick={handleUpdateSeat}
+              >
+                <Save className="ml-2 h-4 w-4" />
+                حفظ التغييرات
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
-      <div className="bg-gray-50 p-4 rounded-md border mb-4 overflow-x-auto">
-        <div className="w-full text-center mb-4 p-2 bg-gray-200 rounded">منصة المعلم</div>
-        
-        <div 
-          className="grid gap-2" 
-          style={{ 
-            gridTemplateColumns: `repeat(${cols}, minmax(60px, 1fr))`,
-            justifyItems: 'center'
-          }}
-        >
-          {seats.map((seat) => (
-            <div
-              key={seat.id}
-              className={`grid-seat ${seat.status} cursor-pointer flex items-center justify-center border rounded-md w-14 h-14 text-sm text-center`}
-              onClick={() => handleSeatClick(seat.id)}
-              title={seat.studentName}
-              style={{
-                backgroundColor: 
-                  seat.status === "empty" ? "#f9fafb" : 
-                  seat.status === "occupied" ? "#dbeafe" :
-                  "#fee2e2",
-                borderColor: 
-                  seat.status === "empty" ? "#e5e7eb" : 
-                  seat.status === "occupied" ? "#93c5fd" :
-                  "#fca5a5",
-              }}
-            >
-              {seat.status === "empty" ? "" : seat.studentId || "M"}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-4 text-sm">
-        <div className="flex items-center">
-          <div 
-            className="w-6 h-6 mr-2 rounded border" 
-            style={{ backgroundColor: "#f9fafb", borderColor: "#e5e7eb" }}
-          ></div>
-          <span>مقعد فارغ</span>
-        </div>
-        <div className="flex items-center">
-          <div 
-            className="w-6 h-6 mr-2 rounded border" 
-            style={{ backgroundColor: "#dbeafe", borderColor: "#93c5fd" }}
-          ></div>
-          <span>مقعد طالب</span>
-        </div>
-        <div className="flex items-center">
-          <div 
-            className="w-6 h-6 mr-2 rounded border" 
-            style={{ backgroundColor: "#fee2e2", borderColor: "#fca5a5" }}
-          ></div>
-          <span>مراقب</span>
-        </div>
-      </div>
+      <style>
+        {`
+        @media print {
+          .print-hidden {
+            display: none !important;
+          }
+        }
+        `}
+      </style>
     </div>
   );
 };

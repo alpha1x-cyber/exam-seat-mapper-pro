@@ -18,7 +18,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
-import { PlusCircle, Pencil, Trash2, Search, UserPlus } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, Search, UserPlus, MapPin } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Student {
@@ -30,13 +30,21 @@ interface Student {
   seatNumber?: string;
 }
 
-// Demo data for students
+// Demo data for students with hall and seat information
 const initialStudents: Student[] = [
-  { id: "ST1001", name: "أحمد محمد", grade: "الثالث", section: "أ" },
-  { id: "ST1002", name: "فاطمة عبدالله", grade: "الثالث", section: "ب" },
-  { id: "ST1003", name: "محمد علي", grade: "الثاني", section: "أ" },
-  { id: "ST1004", name: "نور حسين", grade: "الأول", section: "ج" },
-  { id: "ST1005", name: "عمر خالد", grade: "الثالث", section: "أ" },
+  { id: "ST1001", name: "أحمد محمد", grade: "الثالث", section: "أ", hallId: "H101", seatNumber: "A5" },
+  { id: "ST1002", name: "فاطمة عبدالله", grade: "الثالث", section: "ب", hallId: "H102", seatNumber: "B3" },
+  { id: "ST1003", name: "محمد علي", grade: "الثاني", section: "أ", hallId: "H101", seatNumber: "C2" },
+  { id: "ST1004", name: "نور حسين", grade: "الأول", section: "ج", hallId: "H103", seatNumber: "A1" },
+  { id: "ST1005", name: "عمر خالد", grade: "الثالث", section: "أ", hallId: "H102", seatNumber: "D4" },
+];
+
+// Demo data for available halls
+const availableHalls = [
+  { id: "H101", name: "قاعة 101" },
+  { id: "H102", name: "قاعة 102" },
+  { id: "H103", name: "قاعة 103" },
+  { id: "H104", name: "قاعة 104" },
 ];
 
 const StudentManagement = () => {
@@ -45,11 +53,14 @@ const StudentManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isSeatAssignDialogOpen, setIsSeatAssignDialogOpen] = useState(false);
   const [currentStudent, setCurrentStudent] = useState<Student | null>(null);
   const [newStudent, setNewStudent] = useState<Omit<Student, "id">>({
     name: "",
     grade: "",
     section: "",
+    hallId: "",
+    seatNumber: "",
   });
   
   const { toast } = useToast();
@@ -89,7 +100,7 @@ const StudentManagement = () => {
       description: `تمت إضافة الطالب ${newStudent.name} بنجاح`,
     });
     
-    setNewStudent({ name: "", grade: "", section: "" });
+    setNewStudent({ name: "", grade: "", section: "", hallId: "", seatNumber: "" });
     setIsAddDialogOpen(false);
   };
 
@@ -128,6 +139,34 @@ const StudentManagement = () => {
         description: `تم حذف الطالب ${studentToDelete?.name} بنجاح`,
       });
     }
+  };
+
+  const handleOpenSeatAssign = (student: Student) => {
+    setCurrentStudent(student);
+    setIsSeatAssignDialogOpen(true);
+  };
+
+  const handleAssignSeat = () => {
+    if (!currentStudent) return;
+    
+    const updatedStudents = students.map((student) =>
+      student.id === currentStudent.id ? currentStudent : student
+    );
+    
+    setStudents(updatedStudents);
+    setFilteredStudents(
+      filteredStudents.map((student) =>
+        student.id === currentStudent.id ? currentStudent : student
+      )
+    );
+    
+    toast({
+      title: "تم التعيين بنجاح",
+      description: `تم تعيين المقعد والقاعة للطالب ${currentStudent.name} بنجاح`,
+    });
+    
+    setCurrentStudent(null);
+    setIsSeatAssignDialogOpen(false);
   };
 
   const handleAssignBulkStudents = () => {
@@ -198,6 +237,36 @@ const StudentManagement = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="space-y-2">
+                  <label htmlFor="hall">القاعة</label>
+                  <Select
+                    onValueChange={(value) =>
+                      setNewStudent({ ...newStudent, hallId: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر القاعة" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableHalls.map((hall) => (
+                        <SelectItem key={hall.id} value={hall.id}>
+                          {hall.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="seat">رقم المقعد</label>
+                  <Input
+                    id="seat"
+                    value={newStudent.seatNumber || ''}
+                    onChange={(e) =>
+                      setNewStudent({ ...newStudent, seatNumber: e.target.value })
+                    }
+                    placeholder="مثال: A5"
+                  />
+                </div>
                 <Button onClick={handleAddStudent} className="w-full mt-4">
                   إضافة
                 </Button>
@@ -231,7 +300,7 @@ const StudentManagement = () => {
         )}
       </div>
 
-      <div className="border rounded-md overflow-hidden">
+      <div className="border rounded-md overflow-hidden overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -252,7 +321,11 @@ const StudentManagement = () => {
                   <TableCell className="font-medium">{student.name}</TableCell>
                   <TableCell>{student.grade}</TableCell>
                   <TableCell>{student.section}</TableCell>
-                  <TableCell>{student.hallId || "غير محدد"}</TableCell>
+                  <TableCell>
+                    {student.hallId ? 
+                      availableHalls.find(h => h.id === student.hallId)?.name || student.hallId 
+                      : "غير محدد"}
+                  </TableCell>
                   <TableCell>{student.seatNumber || "غير محدد"}</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
@@ -340,6 +413,74 @@ const StudentManagement = () => {
                           )}
                         </DialogContent>
                       </Dialog>
+                      
+                      <Dialog
+                        open={isSeatAssignDialogOpen && currentStudent?.id === student.id}
+                        onOpenChange={(open) => {
+                          setIsSeatAssignDialogOpen(open);
+                          if (open) setCurrentStudent(student);
+                          else setCurrentStudent(null);
+                        }}
+                      >
+                        <DialogTrigger asChild>
+                          <Button variant="secondary" size="sm">
+                            <MapPin className="h-4 w-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>تحديد القاعة والمقعد</DialogTitle>
+                          </DialogHeader>
+                          {currentStudent && (
+                            <div className="space-y-4 py-4">
+                              <div className="space-y-2">
+                                <label htmlFor="assign-hall">القاعة</label>
+                                <Select
+                                  defaultValue={currentStudent.hallId}
+                                  onValueChange={(value) =>
+                                    setCurrentStudent({
+                                      ...currentStudent,
+                                      hallId: value,
+                                    })
+                                  }
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="اختر القاعة" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {availableHalls.map((hall) => (
+                                      <SelectItem key={hall.id} value={hall.id}>
+                                        {hall.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-2">
+                                <label htmlFor="assign-seat">رقم المقعد</label>
+                                <Input
+                                  id="assign-seat"
+                                  value={currentStudent.seatNumber || ''}
+                                  onChange={(e) =>
+                                    setCurrentStudent({
+                                      ...currentStudent,
+                                      seatNumber: e.target.value,
+                                    })
+                                  }
+                                  placeholder="مثال: A5"
+                                />
+                              </div>
+                              <Button
+                                onClick={handleAssignSeat}
+                                className="w-full mt-4"
+                              >
+                                حفظ التعيين
+                              </Button>
+                            </div>
+                          )}
+                        </DialogContent>
+                      </Dialog>
+                      
                       <Button
                         variant="destructive"
                         size="sm"
